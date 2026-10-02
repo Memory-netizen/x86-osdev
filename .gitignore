@@ -1,0 +1,18 @@
+# 编译产物
+build/
+*.bin
+*.o
+
+# 磁盘镜像
+*.img
+*.img.lock
+
+# 日志
+*.log
+serial.log
+
+# Bochs 调试器布局
+bx_enh_dbg.ini
+
+# 系统文件
+.DS_Store
