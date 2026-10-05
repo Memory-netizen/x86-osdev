@@ -4,52 +4,56 @@
       xchg bx, bx
       jmp near start
 
-mytext db 'L', 0x07, 'a', 0x07, 'b', 0x07, 'e', 0x07, 'l', 0x07, \
-          ' ', 0x07, 'o', 0x07, 'f', 0x07, 'f', 0x07, 's', 0x07, \
-          'e', 0x07, 't', 0x07, ':', 0x07
-number db 0, 0, 0, 0, 0
+message db '1+2+3+...+100='
 
 start:
       mov ax, 0x7c0
       mov ds, ax
+      xor ax, ax
+
+      mov ss, ax
+      mov sp, 0x7c00
 
       mov ax, 0xb800
       mov es, ax
 
-      cld
-      mov si, mytext
+      mov si, message
       mov di, 0
-      mov cx, (number - mytext) / 2
-      rep movsw
+      mov cx, start - message
+@g:
+      mov al, [si]
+      mov [es:di], al
+      inc di
+      mov byte [es:di], 0x07
+      inc di
+      inc si
+      loop @g
 
-      mov ax, number
-      mov bx, ax
+      xor ax, ax
+      mov cx, 100
+@f:
+      add ax, cx
+      loop @f
 
-      mov cx, 5
-      mov si, 10
-digit:
+      mov bx, 10
+@d:
+      inc cx
       xor dx, dx
-      div si
-      mov [bx], dl
-      inc bx
-      loop digit
+      div bx
+      or dl, 0x30
+      push dx
+      cmp ax, 0
+      jne @d
 
-      mov bx, number
-      mov si, 4
 show:
-      mov al, [bx + si]
-      add al, 0x30
-      mov ah, 0x04
-      mov [es:di], ax
-      add di, 2
-      dec si
-      jns show
+      pop dx
+      mov [es:di], dl
+      inc di
+      mov byte [es:di], 0x07
+      inc di
+      loop show
 
-      mov word [es:di], 0x0744
-
- halt:
-      jmp near halt
-
+      jmp $
 
  times 510 - ($ - $$) db 0
       db 0x55, 0xaa
