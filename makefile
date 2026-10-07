@@ -16,20 +16,24 @@ write: master.img build/boot.bin build/app.bin
 	dd if=build/app.bin of=master.img bs=512 seek=1 count=4 conv=notrunc
 
 # Bochs GUI 调试器
+runb: write
+	bochs -f bochsrc -q -unlock
+
+# Bochs GUI 调试器
 dbg: write
 	bochs -f bochsrc -q -dbg_gui -unlock
 
 # QEMU 正常运行
 run: write
-	qemu-system-i386 -drive format=raw,file=master.img
+	qemu-system-i386 -rtc base=localtime -drive format=raw,file=master.img
 
 # QEMU + GDB 调试（暂停等待连接）
 dbgq: write
-	qemu-system-i386 -s -S -drive format=raw,file=master.img
+	qemu-system-i386 -rtc base=localtime -s -S -drive format=raw,file=master.img
 
 # QEMU + 串口日志
 runq_log: write
-	qemu-system-i386 -serial file:serial.log -drive format=raw,file=master.img
+	qemu-system-i386 -rtc base=localtime -serial file:serial.log -drive format=raw,file=master.img
 
 # 清理
 clean:

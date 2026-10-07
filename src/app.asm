@@ -8,19 +8,90 @@ section header vstart=0
     program_len     dd program_end
 
     code_entry      dw start
-                    dd section.code_1.start
+                    dd section.code.start
 
-    realloc_tbl_cnt dw (header_end - code_1_segment)/4
+    realloc_tbl_cnt dw (header_end - realloc_begin)/4
 
-    code_1_segment  dd section.code_1.start
-    code_2_segment  dd section.code_2.start
-    data_1_segment  dd section.data_1.start
-    data_2_segment  dd section.data_2.start
+    realloc_begin:
+    code_segment    dd section.code.start
+    data_segment    dd section.data.start
     stack_segment   dd section.stack.start
 
-	header_end:
+header_end:
 
-section code_1 align=16 vstart=0
+section code align=16 vstart=0
+new_int_0x70:
+      push ax
+      push bx
+      push cx
+      push dx
+      push es
+
+      mov al, 0x80
+      out 0x70, al
+      in al, 0x71
+      push ax
+
+      mov al, 0x82
+      out 0x70, al
+      in al, 0x71
+      push ax
+
+      mov al, 0x84
+      out 0x70, al
+      in al, 0x71
+      push ax
+
+      mov al, 0x0c
+      out 0x70, al
+      in al, 0x71
+
+      mov ax, 0xb800
+      mov es, ax
+
+      mov bx, 12*160 + 36*2
+
+      pop ax
+      call bcd_to_ascii
+      mov [es:bx], ah
+      mov [es:bx+2], al
+
+      mov [es:bx+4], ':'
+      not [es:bx+5]
+
+      pop ax
+      call bcd_to_ascii
+      mov [es:bx+6], ah
+      mov [es:bx+8], al
+
+      mov [es:bx+10], ':'
+      not [es:bx+11]
+
+      pop ax
+      call bcd_to_ascii
+      mov [es:bx+12], ah
+      mov [es:bx+14], al
+
+      mov al, 0x20
+      out 0xa0, al
+      out 0x20, al
+
+      pop es
+      pop dx
+      pop cx
+      pop bx
+      pop ax
+      iret
+
+bcd_to_ascii:
+    mov ah, al
+    and al, 0x0f
+    or al, 0x30
+
+    shr ah, 4
+    or ah, 0x30
+    ret
+
 put_str:
         mov cl, [bx]
         or cl, cl
@@ -41,7 +112,7 @@ put_ch:
         push es
 
         call get_cursor
-		mov bx, ax
+		    mov bx, ax
 
         cmp cl, 0x0d
         jnz .put_0a
@@ -62,7 +133,6 @@ put_ch:
         mov es, ax
         shl bx, 1
         mov [es:bx], cl
-        mov byte [es:bx+1], 0x07
         shr bx, 1
         inc bx
 
@@ -76,7 +146,7 @@ put_ch:
         mov es, ax
         cld
         mov si, 0xa0
-        mov di, 0x00
+        xor di, di
         mov cx, 1920
         rep movsw
         mov bx, 3840
@@ -146,49 +216,69 @@ set_cursor:                            ; 设置光标位置，参数用 BX 传�
 start:
       mov ax, 3
       int 0x10
+
       mov ax, [stack_segment]
       mov ss, ax
       mov sp, stack_end
 
-      mov ax, [data_1_segment]
-      mov ds, ax
-	 
-
-      mov bx, msg0
-      call put_str
-
-      push word [es:code_2_segment]
-      mov ax, begin
-      push ax
-
-      retf
-
-continue:
-      mov ax, [es:data_2_segment]
+      mov ax, [data_segment]
       mov ds, ax
 
-      mov bx, msg1
+      mov bx, init_msg
       call put_str
 
-      jmp $
+      mov bx, inst_msg
+      call put_str
 
-section code_2 align=16 vstart=0
-    begin:
-        push word [es:code_1_segment]
-        mov ax, continue
-        push ax
+      mov al, 0x70
+      mov bl, 4
+      mul bl
+      mov bx, ax
 
-        retf
+      cli
 
-section data_1 align=16 vstart=0
-        msg0 db 'Hello world!!!', 0x0d, 0x0a
-             db 'Hello world!!!', 0x0d, 0x0a
-             db 'Hello world!!!', 0x0d, 0x0a
-             db 0
+      push es
+      xor ax, ax
+      mov es, ax
+      mov word [es:bx], new_int_0x70
+      mov word [es:bx+2], cs
+      pop es
 
-section data_2 align=16 vstart=0
-        msg1 db 'This is a message from ye!'
-             db 0
+      mov al, 0x8b
+      out 0x70, al
+      mov al, 0x12
+      out 0x71, al
+
+      mov al, 0x0c
+      out 0x70, al
+      in al, 0x71
+
+      in al, 0xa1
+      and al, 0xfe
+      out 0xa1, al
+
+      sti
+
+      mov bx, done_msg
+      call put_str
+
+      mov bx, tips_msg
+      call put_str
+
+      mov cx, 0xb800
+      mov ds, cx
+      mov byte [12*160+33*2], '@'
+
+.idle:
+      hlt
+      not byte [12*160+33*2+1]
+      jmp .idle
+
+section data align=16 vstart=0
+    init_msg       db 'Starting...', 0x0d, 0x0a, 0
+    inst_msg       db 'Installing a new interrupt 70H...', 0x0d, 0x0a, 0
+    done_msg       db 'Done.', 0x0d,0x0a, 0
+    tips_msg       db 'Clock is now working.', 0
 
 section stack align=16 vstart=0
         resb 256
